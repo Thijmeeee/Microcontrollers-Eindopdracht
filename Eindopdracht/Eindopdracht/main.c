@@ -18,6 +18,9 @@
 #define BIT(x) (1 << (x))
 #define BIT_OFF(x) (0 << (x))
 
+#define MAX_BUZZER_THRESHOLD 30000
+#define MIN_BUZZER_THRESHOLD 7000
+
 void lcd_strobe_lcd_e(void);
 void init_4bits_mode(void);
 void set_cursor(int position);
@@ -26,18 +29,17 @@ volatile int distance = 0;
 volatile uint16_t delay_count = 35000;
 
 ISR(TIMER1_COMPA_vect) {
-	if (delay_count < 7000)
+	if (delay_count < MIN_BUZZER_THRESHOLD)
 	{
 		PORTF = BIT(1);
-		delay_count = 7000;
-		} else if (delay_count > 35000){
-		delay_count = 35000;
-		PORTF ^= BIT(1);
+		delay_count = MIN_BUZZER_THRESHOLD;
+		} else if (delay_count > MAX_BUZZER_THRESHOLD){
+		delay_count = MAX_BUZZER_THRESHOLD;
+		PORTF = 0;
 		} else {
 		PORTF ^= BIT(1);
 	}
-	
-	delay_count = delay_count - 300;
+	delay_count = distance;
 	OCR1A = delay_count;
 }
 
@@ -185,9 +187,13 @@ int main(void)
 	while (1){
 		send_pulse();
 		wait(250);	
-		lcd_command(0x01);
-		sprintf(buffer, "%d", distance);
-		display_text(buffer);
+		
+		if (distance > 0){
+			lcd_command(0x01);
+			sprintf(buffer, "%d", distance);
+			display_text(buffer);
+		}
+		
 		
 	}
 }
