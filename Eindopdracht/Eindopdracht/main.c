@@ -23,6 +23,31 @@ void init_4bits_mode(void);
 void set_cursor(int position);
 
 volatile int distance = 0;
+volatile uint16_t delay_count = 35000;
+
+ISR(TIMER1_COMPA_vect) {
+	if (delay_count < 7000)
+	{
+		PORTF = BIT(1);
+		delay_count = 7000;
+		} else if (delay_count > 35000){
+		delay_count = 35000;
+		PORTF ^= BIT(1);
+		} else {
+		PORTF ^= BIT(1);
+	}
+	
+	delay_count = delay_count - 300;
+	OCR1A = delay_count;
+}
+
+
+ISR (INT0_vect){
+	// Lees de waarde van Timer 3
+	int timerValue = TCNT3;
+	distance = timerValue;
+	
+}
 
 void wait(int ms) {
 	for (int i = 0; i < ms; i++) {
@@ -75,6 +100,10 @@ void init_4bits_mode(void) {
 	
 	PORTC = 0x20;
 	lcd_strobe_lcd_e();
+	
+	PORTC = 0x20;
+	lcd_strobe_lcd_e();
+	
 	PORTC = 0x80;
 	lcd_strobe_lcd_e();
 	
@@ -91,6 +120,35 @@ void init_4bits_mode(void) {
 	lcd_command(0x01);
 }
 
+void init_buzzer(){
+	DDRF |= BIT(1); // Set the buzzer pin
+	
+	TCCR1B |= (1 << WGM12); // Configure timer 1 for CTC mode
+	TIMSK |= (1 << OCIE1A); // Enable CTC interrupt
+	OCR1A = delay_count; // Set initial delay value
+	
+	TCCR1B |= ((1 << CS10) | (1 << CS11)); // Start timer at Fcpu / 64
+}
+
+void init_ultrasoon(){
+	DDRD = 0b00000010; // SET D0 AS INPUT (ECHO) AND D1 AS OUTPUT (TRIG)
+	
+	TCCR3A = 0;
+	TCCR3B = 0;
+	TCNT3 = 0;
+	
+	TCCR3B |= (1 << CS30);
+}
+
+void init_interrupts(){
+	// INIT Interrupt Hardware
+	EICRA |= 0b00000010; // INT0 falling edge
+	EIMSK |= 0x01; // Enable INT0
+
+	// enable global interrupt system
+	sei();
+}
+
 void display_text(char *str) {
 	for (;*str; str++) {
 		lcd_writeChar(*str);
@@ -102,32 +160,11 @@ void set_cursor(int position){
 	lcd_command(p);
 }
 
-void setupADC(){
-	//DDRF &= ~(1<<PF0);
-	
-	// Ultrasoon: ECHO (D0) = INPUT | TRIG (D1) = OUTPUT
-	DDRF = 0b00000010; // SET D0 AS INPUT AND D1 AS OUTPUT
-	
-	ADMUX = 0b01100000; // Voltage = AVCC with external capacitor at AREF pin | Last 4 bits are the port. Echo is on D0, so all 4 bits are 0
-	
-	ADCSRA = 0b11000110; // 7 bit ENABLES ADC | 6 bit starts the conversion | 5 bit sets it to single use, not an endless while-loop | 3&2 bit set the devision factor (prescaler) to 64.
-}
-
-		
-ISR (INT0_vect){
-	
-	// Lees de waarde van Timer 1
-	int timerValue = TCNT1;
-	distance = timerValue;
-	
-}
-
-
 
 void send_pulse(){
-	// Start Timer 1
-	TCCR1B |= (1 << CS10);
-	TCNT1 = 0;
+	// Start Timer 3
+	TCCR3B |= (1 << CS30);
+	TCNT3 = 0;
 	
 	PORTD = BIT(1);
 	wait_micro(10); // Send a pulse of minimal timer period 10us, this will make the Ultrasonic module to send a burst of data.
@@ -137,36 +174,21 @@ void send_pulse(){
 
 int main(void)
 {	
-	DDRA = 0xFF;
-	DDRD = 0b00000010; // SET D0 AS INPUT (ECHO) AND D1 AS OUTPUT (TRIG)
-	
-	// INIT Interrupt Hardware
-	EICRA |= 0b00000010; // INT0 falling edge
-	EIMSK |= 0x01; // Enable INT0
-
-	// enable global interrupt system
-	sei();
+	init_interrupts();
 	
 	init_4bits_mode();
 	char buffer[20];
 	
-	//TCCR1A = 0b00001100; 
-	TCCR1A = 0;
-	TCCR1B = 0;
-	TCNT1 = 0;
-	
-	TCCR1B |= (1 << CS10);
-	
+	init_buzzer();
+	init_ultrasoon();
 
 	while (1){
 		send_pulse();
-		wait(1000);	
+		wait(250);	
 		lcd_command(0x01);
 		sprintf(buffer, "%d", distance);
 		display_text(buffer);
 		
 	}
-	
-
 }
 
