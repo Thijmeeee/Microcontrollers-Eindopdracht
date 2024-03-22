@@ -115,20 +115,25 @@ void setupADC(){
 
 		
 ISR (INT0_vect){
-    unsigned int timerValue = ICR1;
+	
+	// Lees de waarde van Timer 1
+	int timerValue = TCNT1;
 	distance = timerValue;
-	TCNT1 = 0;
+	
 }
 
 
+
 void send_pulse(){
+	// Start Timer 1
 	TCCR1B |= (1 << CS10);
-	TCCR1A = 0;
+	TCNT1 = 0;
 	
 	PORTD = BIT(1);
 	wait_micro(10); // Send a pulse of minimal timer period 10us, this will make the Ultrasonic module to send a burst of data.
 	PORTD = BIT_OFF(1);
 }
+
 
 int main(void)
 {	
@@ -136,7 +141,7 @@ int main(void)
 	DDRD = 0b00000010; // SET D0 AS INPUT (ECHO) AND D1 AS OUTPUT (TRIG)
 	
 	// INIT Interrupt Hardware
-	EICRA |= 0b00000011; // INT0 rising edge
+	EICRA |= 0b00000010; // INT0 falling edge
 	EIMSK |= 0x01; // Enable INT0
 
 	// enable global interrupt system
@@ -147,7 +152,10 @@ int main(void)
 	
 	//TCCR1A = 0b00001100; 
 	TCCR1A = 0;
-	TCCR1B = (1 << CS11);
+	TCCR1B = 0;
+	TCNT1 = 0;
+	
+	TCCR1B |= (1 << CS10);
 	
 
 	while (1){
@@ -159,36 +167,6 @@ int main(void)
 		
 	}
 	
-	//setupADC();
-	
-	
-	//lcd_command(0x01);
-	//display_text("Nelus");
-	
-    //while (1) 
-    //{
-		//ADCSRA |= (1<<ADSC);
-		////
-		////while (ADCSRA & (1<<ADSC));
-		//
-		//PORTF = BIT(1);
-		//wait(10);
-		//PORTF = BIT_OFF(0);
-		
-		
-		//
-		
-		//set_cursor(40);
-		//sprintf(buffer, "%d", (ADCH));
-		//display_text(buffer);
-		//PORTB = ADCH;
-		//
-		//set_cursor(0);
-		//
-		//
-		//wait(1000);
-		
 
-    //}
 }
 
