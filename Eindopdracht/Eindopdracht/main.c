@@ -26,7 +26,6 @@ void init_4bits_mode(void);
 void set_cursor(int position);
 
 volatile int distance = 0;
-int overflow = 0;
 volatile uint16_t delay_count = 35000;
 volatile uint8_t valueRed = 0x00;
 volatile uint8_t valueGreen = 0x00;
@@ -47,26 +46,14 @@ ISR(TIMER1_COMPA_vect) {
 	OCR1A = delay_count;		
 }
 
-ISR(TIMER3_OVF_vect) {
-	// Reset Timer 3
-	overflow = 1;
-	TCCR3B |= (1 << CS30); // Start Timer 3 again
-	TCNT3 = 0;
-}
-
 ISR (INT0_vect){
-	if (overflow){
+	// Lees de waarde van Timer 3
+	int timerValue = TCNT3;
+	if (timerValue > MAX_BUZZER_THRESHOLD)
+	{
 		distance = -1;
-		//overflow = 0;
 	} else {
-		// Lees de waarde van Timer 3
-		int timerValue = TCNT3;
-		if (timerValue > MAX_BUZZER_THRESHOLD)
-		{
-			distance = -1;
-		} else {
-			distance = timerValue;
-		}
+		distance = timerValue;
 	}
 }
 
@@ -161,7 +148,6 @@ void init_ultrasoon(){
 	TCNT3 = 0;
 	
 	TCCR3B |= (1 << CS30);
-	TIMSK |= (1 << TOIE3);
 }
 
 void init_interrupts(){
@@ -204,10 +190,10 @@ void send_pulse(){
 }
 
 void control_rgb_color(){
-	if (distance < MIN_BUZZER_THRESHOLD) {
+	if (distance < MIN_BUZZER_THRESHOLD && distance >= 0) {
 		valueRed = 255;
 		valueGreen = 0;
-		} else if (distance >= MAX_BUZZER_THRESHOLD) {
+		} else if (distance >= MAX_BUZZER_THRESHOLD || distance < 0) {
 		valueRed = 0;
 		valueGreen = 255;
 		} else {
@@ -255,8 +241,6 @@ int main(void)
 				bool = 1;
 			}
 		}
-		
 		control_rgb_color();
-
 	}
 }
