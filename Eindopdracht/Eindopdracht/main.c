@@ -27,6 +27,9 @@ void set_cursor(int position);
 
 volatile int distance = 0;
 volatile uint16_t delay_count = 35000;
+volatile uint8_t valueRed = 0x00;
+volatile uint8_t valueGreen = 0x00;
+
 
 ISR(TIMER1_COMPA_vect) {
 	if (delay_count < MIN_BUZZER_THRESHOLD)
@@ -42,7 +45,6 @@ ISR(TIMER1_COMPA_vect) {
 	delay_count = distance;
 	OCR1A = delay_count;
 }
-
 
 ISR (INT0_vect){
 	// Lees de waarde van Timer 3
@@ -151,6 +153,14 @@ void init_interrupts(){
 	sei();
 }
 
+void init_leds(){
+	DDRB |= BIT(7);
+	DDRB |= BIT(4);
+	
+	TCCR2 |= (1 << WGM20) | (1 << COM21) | (1 << CS20);
+	TCCR0 |= (1 << WGM00) | (1 << COM01) | (1 << CS00);
+}
+
 void display_text(char *str) {
 	for (;*str; str++) {
 		lcd_writeChar(*str);
@@ -168,14 +178,32 @@ void send_pulse(){
 	TCCR3B |= (1 << CS30);
 	TCNT3 = 0;
 	
-	PORTD = BIT(1);
+	PORTD |= BIT(1);
 	wait_micro(10); // Send a pulse of minimal timer period 10us, this will make the Ultrasonic module to send a burst of data.
-	PORTD = BIT_OFF(1);
+	PORTD ^= BIT(1);
+}
+
+void control_rgb_color(){
+	if (distance < MIN_BUZZER_THRESHOLD) {
+		valueRed = 255;
+		valueGreen = 0;
+		} else if (distance >= MAX_BUZZER_THRESHOLD) {
+		valueRed = 0;
+		valueGreen = 255;
+		} else {
+		float ratio = (float)(distance - MIN_BUZZER_THRESHOLD) / (float)(MAX_BUZZER_THRESHOLD - MIN_BUZZER_THRESHOLD);
+		valueRed = 255 * (1 - ratio);
+		valueGreen = 255 * ratio;
+	}
+	
+	OCR2 = valueRed;
+	OCR0 = valueGreen;
 }
 
 
 int main(void)
 {	
+	init_leds();
 	init_interrupts();
 	
 	init_4bits_mode();
@@ -186,7 +214,7 @@ int main(void)
 
 	while (1){
 		send_pulse();
-		wait(250);	
+		wait(250);
 		
 		if (distance > 0){
 			lcd_command(0x01);
@@ -194,7 +222,8 @@ int main(void)
 			display_text(buffer);
 		}
 		
-		
+		control_rgb_color();
+
 	}
 }
 
