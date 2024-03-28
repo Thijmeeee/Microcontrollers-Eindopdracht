@@ -3,7 +3,7 @@
  * Microcontrollers - Eindopdracht
  *
  * Created: 01/03/2024 12:36:36
- * Author : Rubbie
+ * Author : De kniggets + Thijmpien
  */ 
 
 #include <avr/io.h>
@@ -26,6 +26,7 @@ void init_4bits_mode(void);
 void set_cursor(int position);
 
 volatile int distance = 0;
+int overflow = 0;
 volatile uint16_t delay_count = 35000;
 
 ISR(TIMER1_COMPA_vect) {
@@ -40,15 +41,32 @@ ISR(TIMER1_COMPA_vect) {
 		PORTF ^= BIT(1);
 	}
 	delay_count = distance;
-	OCR1A = delay_count;
+	OCR1A = delay_count;		
+}
+
+ISR(TIMER3_OVF_vect) {
+	// Reset Timer 3
+	overflow = 1;
+	TCCR3B |= (1 << CS30); // Start Timer 3 again
+	TCNT3 = 0;
 }
 
 
+
 ISR (INT0_vect){
-	// Lees de waarde van Timer 3
-	int timerValue = TCNT3;
-	distance = timerValue;
-	
+	if (overflow){
+		distance = -1;
+		//overflow = 0;
+	} else {
+		// Lees de waarde van Timer 3
+		int timerValue = TCNT3;
+		if (timerValue > MAX_BUZZER_THRESHOLD)
+		{
+			distance = -1;
+		} else {
+			distance = timerValue;
+		}
+	}
 }
 
 void wait(int ms) {
@@ -63,15 +81,15 @@ void wait_micro(int us) {
 	}
 }
 
-void lcd_command(unsigned char data) {
-	PORTC = data & 0xF0; //hoge nubble
-	lcd_strobe_lcd_e();		//wait 1 ms
-	
-	PORTC = 0x04;
-	PORTC = (data & 0x0F) << 4;
-	
+void lcd_write_command(unsigned char byte)
+{
+	PORTC = byte;
+	PORTC &= ~(1<<LCD_RS);
 	lcd_strobe_lcd_e();
-	PORTC = 0x00;
+
+	PORTC = (byte<<4);
+	PORTC &= ~(1<<LCD_RS);
+	lcd_strobe_lcd_e();
 }
 
 void lcd_writeChar(unsigned char data) {
@@ -93,33 +111,35 @@ void lcd_strobe_lcd_e(void) {
 }
 
 void init_4bits_mode(void) {
-	
 	DDRC = 0xFF;
 	PORTC = 0x00;
-	
-	PORTC = 0x20;
+
+	lcd_write_command( 0x28);
+	lcd_strobe_lcd_e();
+
+	lcd_write_command( 0x28);
 	lcd_strobe_lcd_e();
 	
-	PORTC = 0x20;
+	lcd_write_command( 0x28);
 	lcd_strobe_lcd_e();
 	
-	PORTC = 0x20;
+	lcd_write_command( 0x80);
 	lcd_strobe_lcd_e();
-	
-	PORTC = 0x80;
+
+	lcd_write_command( 0x00);
 	lcd_strobe_lcd_e();
-	
-	PORTC = 0x00;
+	lcd_write_command( 0xF0);
 	lcd_strobe_lcd_e();
-	PORTC = 0xF0;
+
+	lcd_write_command( 0x00);
 	lcd_strobe_lcd_e();
-	
-	PORTC = 0x00;
+	lcd_write_command( 0x60);
 	lcd_strobe_lcd_e();
-	PORTC = 0x60;
-	lcd_strobe_lcd_e();
-	
-	lcd_command(0x01);
+}
+
+void clear_lcd()
+{
+	lcd_write_command(0x01);
 }
 
 void init_buzzer(){
@@ -133,13 +153,14 @@ void init_buzzer(){
 }
 
 void init_ultrasoon(){
-	DDRD = 0b00000010; // SET D0 AS INPUT (ECHO) AND D1 AS OUTPUT (TRIG)
+	DDRD = 0b00000110; // SET D0 AS INPUT (ECHO) AND D1 AS OUTPUT (TRIG)
 	
 	TCCR3A = 0;
 	TCCR3B = 0;
 	TCNT3 = 0;
 	
 	TCCR3B |= (1 << CS30);
+	TIMSK |= (1 << TOIE3);
 }
 
 void init_interrupts(){
@@ -159,7 +180,7 @@ void display_text(char *str) {
 
 void set_cursor(int position){
 	unsigned char p = 0x80 + position;
-	lcd_command(p);
+	lcd_write_command(p);
 }
 
 
@@ -168,33 +189,44 @@ void send_pulse(){
 	TCCR3B |= (1 << CS30);
 	TCNT3 = 0;
 	
-	PORTD = BIT(1);
+	PORTD |= BIT(1);
 	wait_micro(10); // Send a pulse of minimal timer period 10us, this will make the Ultrasonic module to send a burst of data.
-	PORTD = BIT_OFF(1);
+	PORTD ^= BIT(1);
 }
 
+int bool = 0;
 
 int main(void)
 {	
 	init_interrupts();
 	
 	init_4bits_mode();
-	char buffer[20];
+	char buffer[200];
 	
 	init_buzzer();
 	init_ultrasoon();
+	
+	PORTD |= BIT(2);
 
 	while (1){
 		send_pulse();
-		wait(250);	
+		wait(100);	
 		
 		if (distance > 0){
-			lcd_command(0x01);
-			sprintf(buffer, "%d", distance);
+			bool = 0;
+			clear_lcd();
+			int distance_cm = (distance - 2000) / 420;
+			sprintf(buffer, "%d%s", distance_cm, " cm");
 			display_text(buffer);
+		} else {
+			if (!bool){
+				clear_lcd();
+				display_text("Yallah achteruit");
+				set_cursor(40);
+				display_text("gaan, oulleh!");
+				set_cursor(0);
+				bool = 1;
+			}
 		}
-		
-		
 	}
 }
-
