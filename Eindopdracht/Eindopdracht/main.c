@@ -46,7 +46,7 @@ ISR(TIMER1_COMPA_vect) {
 	OCR1A = delay_count;		
 }
 
-// interrupt when received echo from ultrasone sensor
+// interrupt when received echo from ultrasonic sensor
 ISR (INT0_vect){
 	// read value of Timer 3
 	int timerValue = TCNT3;
@@ -152,7 +152,7 @@ void init_ultrasoon(){
 	init_interrupts();
 }
 
-//init echo interrupt for ultrasone sensor
+//init echo interrupt for ultrasonic sensor
 void init_interrupts(){
 	// INIT Interrupt Hardware
 	EICRA |= 0b00000010; // INT0 falling edge
@@ -193,10 +193,10 @@ void send_pulse(){
 }
 
 void control_rgb_color(){
-	if (distance < MIN_BUZZER_THRESHOLD && distance >= 0) { //very close for ultrasone sensor
+	if (distance < MIN_BUZZER_THRESHOLD && distance >= 0) { //very close for ultrasonic sensor
 		valueRed = 255;
 		valueGreen = 0;
-		} else if (distance >= MAX_BUZZER_THRESHOLD || distance < 0) { //too far for ultrasone sensor
+		} else if (distance >= MAX_BUZZER_THRESHOLD || distance < 0) { //too far for ultrasonic sensor
 		valueRed = 0;
 		valueGreen = 255;
 		} else { //somewhere in between
@@ -227,7 +227,7 @@ int main(void)
 		send_pulse();
 		wait(250);
 		
-		// getting a value from the ultrasone sensor
+		// getting a value from the ultrasonic sensor
 		if (distance > 0){
 			bool = 0;
 			clear_lcd();
@@ -237,7 +237,7 @@ int main(void)
 			
 			sprintf(buffer, "%d%s", distance_cm, " cm");
 			display_text(buffer);
-		} else { // object too far for te ultrasone sensor
+		} else { // object too far for the ultrasonic sensor
 			if (!bool){
 				clear_lcd();
 				display_text("Yallah achteruit");
