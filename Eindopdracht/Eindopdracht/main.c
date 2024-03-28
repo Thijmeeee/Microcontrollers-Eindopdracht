@@ -3,7 +3,7 @@
  * Microcontrollers - Eindopdracht
  *
  * Created: 01/03/2024 12:36:36
- * Author : De kniggets + Thijmpien
+ * Author : Ruben, Niels en Thijme
  */ 
 
 #include <avr/io.h>
