@@ -44,8 +44,10 @@ ISR(TIMER1_COMPA_vect) {
 	OCR1A = delay_count;		
 }
 
-ISR(TIMER3_OVF_vect) {
+ISR(TIMER3_COMPA_vect) {
+	DDRA = 0xFF;
 	// Reset Timer 3
+	PORTA = BIT(1);
 	overflow = 1;
 	TCCR3B |= (1 << CS30); // Start Timer 3 again
 	TCNT3 = 0;
@@ -155,12 +157,12 @@ void init_buzzer(){
 void init_ultrasoon(){
 	DDRD = 0b00000110; // SET D0 AS INPUT (ECHO) AND D1 AS OUTPUT (TRIG)
 	
-	TCCR3A = 0;
-	TCCR3B = 0;
+	TCCR3A |= (1 << WGM12); // CTC mode
 	TCNT3 = 0;
 	
 	TCCR3B |= (1 << CS30);
-	TIMSK |= (1 << TOIE3);
+	TIMSK |= (1 << OCIE3A); // Enable CTC interrupt
+	OCR3A = 20;
 }
 
 void init_interrupts(){
