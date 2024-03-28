@@ -30,7 +30,7 @@ volatile uint16_t delay_count = 35000;
 volatile uint8_t valueRed = 0x00;
 volatile uint8_t valueGreen = 0x00;
 
-
+// interrupt for making the buzzer beep with a variable duration
 ISR(TIMER1_COMPA_vect) {
 	if (delay_count < MIN_BUZZER_THRESHOLD)
 	{
@@ -46,8 +46,9 @@ ISR(TIMER1_COMPA_vect) {
 	OCR1A = delay_count;		
 }
 
+// interrupt when received echo from ultrasone sensor
 ISR (INT0_vect){
-	// Lees de waarde van Timer 3
+	// read value of Timer 3
 	int timerValue = TCNT3;
 	if (timerValue > MAX_BUZZER_THRESHOLD)
 	{
@@ -148,8 +149,10 @@ void init_ultrasoon(){
 	TCNT3 = 0;
 	
 	TCCR3B |= (1 << CS30);
+	init_interrupts();
 }
 
+//init echo interrupt for ultrasone sensor
 void init_interrupts(){
 	// INIT Interrupt Hardware
 	EICRA |= 0b00000010; // INT0 falling edge
@@ -190,13 +193,13 @@ void send_pulse(){
 }
 
 void control_rgb_color(){
-	if (distance < MIN_BUZZER_THRESHOLD && distance >= 0) {
+	if (distance < MIN_BUZZER_THRESHOLD && distance >= 0) { //very close for ultrasone sensor
 		valueRed = 255;
 		valueGreen = 0;
-		} else if (distance >= MAX_BUZZER_THRESHOLD || distance < 0) {
+		} else if (distance >= MAX_BUZZER_THRESHOLD || distance < 0) { //too far for ultrasone sensor
 		valueRed = 0;
 		valueGreen = 255;
-		} else {
+		} else { //somewhere in between
 		float ratio = (float)(distance - MIN_BUZZER_THRESHOLD) / (float)(MAX_BUZZER_THRESHOLD - MIN_BUZZER_THRESHOLD);
 		valueRed = 255 * (1 - ratio);
 		valueGreen = 255 * ratio;
@@ -211,7 +214,6 @@ int bool = 0;
 int main(void)
 {	
 	init_leds();
-	init_interrupts();
 	
 	init_4bits_mode();
 	char buffer[200];
@@ -225,13 +227,17 @@ int main(void)
 		send_pulse();
 		wait(250);
 		
+		// getting a value from the ultrasone sensor
 		if (distance > 0){
 			bool = 0;
 			clear_lcd();
+			
+			//convert time to cm
 			int distance_cm = (distance - 2000) / 420;
+			
 			sprintf(buffer, "%d%s", distance_cm, " cm");
 			display_text(buffer);
-		} else {
+		} else { // object too far for te ultrasone sensor
 			if (!bool){
 				clear_lcd();
 				display_text("Yallah achteruit");

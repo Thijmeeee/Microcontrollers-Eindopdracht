@@ -15,19 +15,19 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY
   5 .debug_aranges 000000a8  00000000  00000000  00000ff8  2**0
                   CONTENTS, READONLY, DEBUGGING
-  6 .debug_info   00000ee0  00000000  00000000  000010a0  2**0
+  6 .debug_info   00000ef8  00000000  00000000  000010a0  2**0
                   CONTENTS, READONLY, DEBUGGING
-  7 .debug_abbrev 00000970  00000000  00000000  00001f80  2**0
+  7 .debug_abbrev 00000988  00000000  00000000  00001f98  2**0
                   CONTENTS, READONLY, DEBUGGING
-  8 .debug_line   000006ca  00000000  00000000  000028f0  2**0
+  8 .debug_line   000006ca  00000000  00000000  00002920  2**0
                   CONTENTS, READONLY, DEBUGGING
-  9 .debug_frame  000001b8  00000000  00000000  00002fbc  2**2
+  9 .debug_frame  000001b8  00000000  00000000  00002fec  2**2
                   CONTENTS, READONLY, DEBUGGING
- 10 .debug_str    00000588  00000000  00000000  00003174  2**0
+ 10 .debug_str    00000588  00000000  00000000  000031a4  2**0
                   CONTENTS, READONLY, DEBUGGING
- 11 .debug_loc    0000044d  00000000  00000000  000036fc  2**0
+ 11 .debug_loc    0000044d  00000000  00000000  0000372c  2**0
                   CONTENTS, READONLY, DEBUGGING
- 12 .debug_ranges 00000098  00000000  00000000  00003b49  2**0
+ 12 .debug_ranges 00000098  00000000  00000000  00003b79  2**0
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -140,7 +140,7 @@ Disassembly of section .text:
   bc:	a0 33       	cpi	r26, 0x30	; 48
   be:	b2 07       	cpc	r27, r18
   c0:	e1 f7       	brne	.-8      	; 0xba <.do_clear_bss_loop>
-  c2:	a1 d1       	rcall	.+834    	; 0x406 <main>
+  c2:	a2 d1       	rcall	.+836    	; 0x408 <main>
   c4:	eb c6       	rjmp	.+3542   	; 0xe9c <_exit>
 
 000000c6 <__bad_interrupt>:
@@ -151,7 +151,7 @@ volatile uint16_t delay_count = 35000;
 volatile uint8_t valueRed = 0x00;
 volatile uint8_t valueGreen = 0x00;
 
-
+// interrupt for making the buzzer beep with a variable duration
 ISR(TIMER1_COMPA_vect) {
   c8:	1f 92       	push	r1
   ca:	0f 92       	push	r0
@@ -230,6 +230,7 @@ ISR(TIMER1_COMPA_vect) {
 
 00000162 <__vector_1>:
 
+// interrupt when received echo from ultrasone sensor
 ISR (INT0_vect){
  162:	1f 92       	push	r1
  164:	0f 92       	push	r0
@@ -239,7 +240,7 @@ ISR (INT0_vect){
  16c:	2f 93       	push	r18
  16e:	8f 93       	push	r24
  170:	9f 93       	push	r25
-	// Lees de waarde van Timer 3
+	// read value of Timer 3
 	int timerValue = TCNT3;
  172:	80 91 88 00 	lds	r24, 0x0088	; 0x800088 <__TEXT_REGION_LENGTH__+0x7e0088>
  176:	90 91 89 00 	lds	r25, 0x0089	; 0x800089 <__TEXT_REGION_LENGTH__+0x7e0089>
@@ -522,261 +523,266 @@ void init_buzzer(){
  2b0:	8e bd       	out	0x2e, r24	; 46
  2b2:	08 95       	ret
 
-000002b4 <init_ultrasoon>:
+000002b4 <init_interrupts>:
+}
+
+//init echo interrupt for ultrasone sensor
+void init_interrupts(){
+	// INIT Interrupt Hardware
+	EICRA |= 0b00000010; // INT0 falling edge
+ 2b4:	ea e6       	ldi	r30, 0x6A	; 106
+ 2b6:	f0 e0       	ldi	r31, 0x00	; 0
+ 2b8:	80 81       	ld	r24, Z
+ 2ba:	82 60       	ori	r24, 0x02	; 2
+ 2bc:	80 83       	st	Z, r24
+	EIMSK |= 0x01; // Enable INT0
+ 2be:	89 b7       	in	r24, 0x39	; 57
+ 2c0:	81 60       	ori	r24, 0x01	; 1
+ 2c2:	89 bf       	out	0x39, r24	; 57
+
+	// enable global interrupt system
+	sei();
+ 2c4:	78 94       	sei
+ 2c6:	08 95       	ret
+
+000002c8 <init_ultrasoon>:
+	
+	TCCR1B |= ((1 << CS10) | (1 << CS11)); // Start timer at Fcpu / 64
 }
 
 void init_ultrasoon(){
 	DDRD = 0b00000110; // SET D0 AS INPUT (ECHO) AND D1 AS OUTPUT (TRIG)
- 2b4:	86 e0       	ldi	r24, 0x06	; 6
- 2b6:	81 bb       	out	0x11, r24	; 17
+ 2c8:	86 e0       	ldi	r24, 0x06	; 6
+ 2ca:	81 bb       	out	0x11, r24	; 17
 	
 	TCCR3A = 0;
- 2b8:	10 92 8b 00 	sts	0x008B, r1	; 0x80008b <__TEXT_REGION_LENGTH__+0x7e008b>
+ 2cc:	10 92 8b 00 	sts	0x008B, r1	; 0x80008b <__TEXT_REGION_LENGTH__+0x7e008b>
 	TCCR3B = 0;
- 2bc:	ea e8       	ldi	r30, 0x8A	; 138
- 2be:	f0 e0       	ldi	r31, 0x00	; 0
- 2c0:	10 82       	st	Z, r1
+ 2d0:	ea e8       	ldi	r30, 0x8A	; 138
+ 2d2:	f0 e0       	ldi	r31, 0x00	; 0
+ 2d4:	10 82       	st	Z, r1
 	TCNT3 = 0;
- 2c2:	10 92 89 00 	sts	0x0089, r1	; 0x800089 <__TEXT_REGION_LENGTH__+0x7e0089>
- 2c6:	10 92 88 00 	sts	0x0088, r1	; 0x800088 <__TEXT_REGION_LENGTH__+0x7e0088>
+ 2d6:	10 92 89 00 	sts	0x0089, r1	; 0x800089 <__TEXT_REGION_LENGTH__+0x7e0089>
+ 2da:	10 92 88 00 	sts	0x0088, r1	; 0x800088 <__TEXT_REGION_LENGTH__+0x7e0088>
 	
 	TCCR3B |= (1 << CS30);
- 2ca:	80 81       	ld	r24, Z
- 2cc:	81 60       	ori	r24, 0x01	; 1
- 2ce:	80 83       	st	Z, r24
- 2d0:	08 95       	ret
+ 2de:	80 81       	ld	r24, Z
+ 2e0:	81 60       	ori	r24, 0x01	; 1
+ 2e2:	80 83       	st	Z, r24
+	init_interrupts();
+ 2e4:	e7 cf       	rjmp	.-50     	; 0x2b4 <init_interrupts>
+ 2e6:	08 95       	ret
 
-000002d2 <init_interrupts>:
-}
-
-void init_interrupts(){
-	// INIT Interrupt Hardware
-	EICRA |= 0b00000010; // INT0 falling edge
- 2d2:	ea e6       	ldi	r30, 0x6A	; 106
- 2d4:	f0 e0       	ldi	r31, 0x00	; 0
- 2d6:	80 81       	ld	r24, Z
- 2d8:	82 60       	ori	r24, 0x02	; 2
- 2da:	80 83       	st	Z, r24
-	EIMSK |= 0x01; // Enable INT0
- 2dc:	89 b7       	in	r24, 0x39	; 57
- 2de:	81 60       	ori	r24, 0x01	; 1
- 2e0:	89 bf       	out	0x39, r24	; 57
-
+000002e8 <init_leds>:
 	// enable global interrupt system
 	sei();
- 2e2:	78 94       	sei
- 2e4:	08 95       	ret
-
-000002e6 <init_leds>:
 }
 
 void init_leds(){
 	DDRB |= BIT(7);
- 2e6:	87 b3       	in	r24, 0x17	; 23
- 2e8:	80 68       	ori	r24, 0x80	; 128
- 2ea:	87 bb       	out	0x17, r24	; 23
+ 2e8:	87 b3       	in	r24, 0x17	; 23
+ 2ea:	80 68       	ori	r24, 0x80	; 128
+ 2ec:	87 bb       	out	0x17, r24	; 23
 	DDRB |= BIT(4);
- 2ec:	87 b3       	in	r24, 0x17	; 23
- 2ee:	80 61       	ori	r24, 0x10	; 16
- 2f0:	87 bb       	out	0x17, r24	; 23
+ 2ee:	87 b3       	in	r24, 0x17	; 23
+ 2f0:	80 61       	ori	r24, 0x10	; 16
+ 2f2:	87 bb       	out	0x17, r24	; 23
 	
 	TCCR2 |= (1 << WGM20) | (1 << COM21) | (1 << CS20);
- 2f2:	85 b5       	in	r24, 0x25	; 37
- 2f4:	81 66       	ori	r24, 0x61	; 97
- 2f6:	85 bd       	out	0x25, r24	; 37
+ 2f4:	85 b5       	in	r24, 0x25	; 37
+ 2f6:	81 66       	ori	r24, 0x61	; 97
+ 2f8:	85 bd       	out	0x25, r24	; 37
 	TCCR0 |= (1 << WGM00) | (1 << COM01) | (1 << CS00);
- 2f8:	83 b7       	in	r24, 0x33	; 51
- 2fa:	81 66       	ori	r24, 0x61	; 97
- 2fc:	83 bf       	out	0x33, r24	; 51
- 2fe:	08 95       	ret
+ 2fa:	83 b7       	in	r24, 0x33	; 51
+ 2fc:	81 66       	ori	r24, 0x61	; 97
+ 2fe:	83 bf       	out	0x33, r24	; 51
+ 300:	08 95       	ret
 
-00000300 <display_text>:
+00000302 <display_text>:
 }
 
 void display_text(char *str) {
- 300:	cf 93       	push	r28
- 302:	df 93       	push	r29
- 304:	ec 01       	movw	r28, r24
+ 302:	cf 93       	push	r28
+ 304:	df 93       	push	r29
+ 306:	ec 01       	movw	r28, r24
 	for (;*str; str++) {
- 306:	02 c0       	rjmp	.+4      	; 0x30c <display_text+0xc>
+ 308:	02 c0       	rjmp	.+4      	; 0x30e <display_text+0xc>
 		lcd_writeChar(*str);
- 308:	8e df       	rcall	.-228    	; 0x226 <lcd_writeChar>
+ 30a:	8d df       	rcall	.-230    	; 0x226 <lcd_writeChar>
 	TCCR2 |= (1 << WGM20) | (1 << COM21) | (1 << CS20);
 	TCCR0 |= (1 << WGM00) | (1 << COM01) | (1 << CS00);
 }
 
 void display_text(char *str) {
 	for (;*str; str++) {
- 30a:	21 96       	adiw	r28, 0x01	; 1
- 30c:	88 81       	ld	r24, Y
- 30e:	81 11       	cpse	r24, r1
- 310:	fb cf       	rjmp	.-10     	; 0x308 <display_text+0x8>
+ 30c:	21 96       	adiw	r28, 0x01	; 1
+ 30e:	88 81       	ld	r24, Y
+ 310:	81 11       	cpse	r24, r1
+ 312:	fb cf       	rjmp	.-10     	; 0x30a <display_text+0x8>
 		lcd_writeChar(*str);
 	}
 }
- 312:	df 91       	pop	r29
- 314:	cf 91       	pop	r28
- 316:	08 95       	ret
+ 314:	df 91       	pop	r29
+ 316:	cf 91       	pop	r28
+ 318:	08 95       	ret
 
-00000318 <set_cursor>:
+0000031a <set_cursor>:
 
 void set_cursor(int position){
 	unsigned char p = 0x80 + position;
 	lcd_write_command(p);
- 318:	80 58       	subi	r24, 0x80	; 128
- 31a:	75 cf       	rjmp	.-278    	; 0x206 <lcd_write_command>
- 31c:	08 95       	ret
+ 31a:	80 58       	subi	r24, 0x80	; 128
+ 31c:	74 cf       	rjmp	.-280    	; 0x206 <lcd_write_command>
+ 31e:	08 95       	ret
 
-0000031e <send_pulse>:
+00000320 <send_pulse>:
 }
 
 
 void send_pulse(){
 	// Start Timer 3
 	TCCR3B |= (1 << CS30);
- 31e:	ea e8       	ldi	r30, 0x8A	; 138
- 320:	f0 e0       	ldi	r31, 0x00	; 0
- 322:	80 81       	ld	r24, Z
- 324:	81 60       	ori	r24, 0x01	; 1
- 326:	80 83       	st	Z, r24
+ 320:	ea e8       	ldi	r30, 0x8A	; 138
+ 322:	f0 e0       	ldi	r31, 0x00	; 0
+ 324:	80 81       	ld	r24, Z
+ 326:	81 60       	ori	r24, 0x01	; 1
+ 328:	80 83       	st	Z, r24
 	TCNT3 = 0;
- 328:	10 92 89 00 	sts	0x0089, r1	; 0x800089 <__TEXT_REGION_LENGTH__+0x7e0089>
- 32c:	10 92 88 00 	sts	0x0088, r1	; 0x800088 <__TEXT_REGION_LENGTH__+0x7e0088>
+ 32a:	10 92 89 00 	sts	0x0089, r1	; 0x800089 <__TEXT_REGION_LENGTH__+0x7e0089>
+ 32e:	10 92 88 00 	sts	0x0088, r1	; 0x800088 <__TEXT_REGION_LENGTH__+0x7e0088>
 	
 	PORTD |= BIT(1);
- 330:	82 b3       	in	r24, 0x12	; 18
- 332:	82 60       	ori	r24, 0x02	; 2
- 334:	82 bb       	out	0x12, r24	; 18
+ 332:	82 b3       	in	r24, 0x12	; 18
+ 334:	82 60       	ori	r24, 0x02	; 2
+ 336:	82 bb       	out	0x12, r24	; 18
 	wait_micro(10); // Send a pulse of minimal timer period 10us, this will make the Ultrasonic module to send a burst of data.
- 336:	8a e0       	ldi	r24, 0x0A	; 10
- 338:	90 e0       	ldi	r25, 0x00	; 0
- 33a:	45 df       	rcall	.-374    	; 0x1c6 <wait_micro>
+ 338:	8a e0       	ldi	r24, 0x0A	; 10
+ 33a:	90 e0       	ldi	r25, 0x00	; 0
+ 33c:	44 df       	rcall	.-376    	; 0x1c6 <wait_micro>
 	PORTD ^= BIT(1);
- 33c:	92 b3       	in	r25, 0x12	; 18
- 33e:	82 e0       	ldi	r24, 0x02	; 2
- 340:	89 27       	eor	r24, r25
- 342:	82 bb       	out	0x12, r24	; 18
- 344:	08 95       	ret
+ 33e:	92 b3       	in	r25, 0x12	; 18
+ 340:	82 e0       	ldi	r24, 0x02	; 2
+ 342:	89 27       	eor	r24, r25
+ 344:	82 bb       	out	0x12, r24	; 18
+ 346:	08 95       	ret
 
-00000346 <control_rgb_color>:
+00000348 <control_rgb_color>:
 }
 
 void control_rgb_color(){
- 346:	cf 92       	push	r12
- 348:	df 92       	push	r13
- 34a:	ef 92       	push	r14
- 34c:	ff 92       	push	r15
-	if (distance < MIN_BUZZER_THRESHOLD && distance >= 0) {
- 34e:	80 91 2e 01 	lds	r24, 0x012E	; 0x80012e <distance>
- 352:	90 91 2f 01 	lds	r25, 0x012F	; 0x80012f <distance+0x1>
- 356:	88 35       	cpi	r24, 0x58	; 88
- 358:	9b 41       	sbci	r25, 0x1B	; 27
- 35a:	64 f4       	brge	.+24     	; 0x374 <control_rgb_color+0x2e>
- 35c:	80 91 2e 01 	lds	r24, 0x012E	; 0x80012e <distance>
- 360:	90 91 2f 01 	lds	r25, 0x012F	; 0x80012f <distance+0x1>
- 364:	99 23       	and	r25, r25
- 366:	34 f0       	brlt	.+12     	; 0x374 <control_rgb_color+0x2e>
+ 348:	cf 92       	push	r12
+ 34a:	df 92       	push	r13
+ 34c:	ef 92       	push	r14
+ 34e:	ff 92       	push	r15
+	if (distance < MIN_BUZZER_THRESHOLD && distance >= 0) { //very close for ultrasone sensor
+ 350:	80 91 2e 01 	lds	r24, 0x012E	; 0x80012e <distance>
+ 354:	90 91 2f 01 	lds	r25, 0x012F	; 0x80012f <distance+0x1>
+ 358:	88 35       	cpi	r24, 0x58	; 88
+ 35a:	9b 41       	sbci	r25, 0x1B	; 27
+ 35c:	64 f4       	brge	.+24     	; 0x376 <control_rgb_color+0x2e>
+ 35e:	80 91 2e 01 	lds	r24, 0x012E	; 0x80012e <distance>
+ 362:	90 91 2f 01 	lds	r25, 0x012F	; 0x80012f <distance+0x1>
+ 366:	99 23       	and	r25, r25
+ 368:	34 f0       	brlt	.+12     	; 0x376 <control_rgb_color+0x2e>
 		valueRed = 255;
- 368:	8f ef       	ldi	r24, 0xFF	; 255
- 36a:	80 93 2d 01 	sts	0x012D, r24	; 0x80012d <valueRed>
+ 36a:	8f ef       	ldi	r24, 0xFF	; 255
+ 36c:	80 93 2d 01 	sts	0x012D, r24	; 0x80012d <valueRed>
 		valueGreen = 0;
- 36e:	10 92 2c 01 	sts	0x012C, r1	; 0x80012c <valueGreen>
- 372:	3e c0       	rjmp	.+124    	; 0x3f0 <control_rgb_color+0xaa>
-		} else if (distance >= MAX_BUZZER_THRESHOLD || distance < 0) {
- 374:	80 91 2e 01 	lds	r24, 0x012E	; 0x80012e <distance>
- 378:	90 91 2f 01 	lds	r25, 0x012F	; 0x80012f <distance+0x1>
- 37c:	80 33       	cpi	r24, 0x30	; 48
- 37e:	95 47       	sbci	r25, 0x75	; 117
- 380:	34 f4       	brge	.+12     	; 0x38e <control_rgb_color+0x48>
- 382:	80 91 2e 01 	lds	r24, 0x012E	; 0x80012e <distance>
- 386:	90 91 2f 01 	lds	r25, 0x012F	; 0x80012f <distance+0x1>
- 38a:	99 23       	and	r25, r25
- 38c:	34 f4       	brge	.+12     	; 0x39a <control_rgb_color+0x54>
+ 370:	10 92 2c 01 	sts	0x012C, r1	; 0x80012c <valueGreen>
+ 374:	3e c0       	rjmp	.+124    	; 0x3f2 <control_rgb_color+0xaa>
+		} else if (distance >= MAX_BUZZER_THRESHOLD || distance < 0) { //too far for ultrasone sensor
+ 376:	80 91 2e 01 	lds	r24, 0x012E	; 0x80012e <distance>
+ 37a:	90 91 2f 01 	lds	r25, 0x012F	; 0x80012f <distance+0x1>
+ 37e:	80 33       	cpi	r24, 0x30	; 48
+ 380:	95 47       	sbci	r25, 0x75	; 117
+ 382:	34 f4       	brge	.+12     	; 0x390 <control_rgb_color+0x48>
+ 384:	80 91 2e 01 	lds	r24, 0x012E	; 0x80012e <distance>
+ 388:	90 91 2f 01 	lds	r25, 0x012F	; 0x80012f <distance+0x1>
+ 38c:	99 23       	and	r25, r25
+ 38e:	34 f4       	brge	.+12     	; 0x39c <control_rgb_color+0x54>
 		valueRed = 0;
- 38e:	10 92 2d 01 	sts	0x012D, r1	; 0x80012d <valueRed>
+ 390:	10 92 2d 01 	sts	0x012D, r1	; 0x80012d <valueRed>
 		valueGreen = 255;
- 392:	8f ef       	ldi	r24, 0xFF	; 255
- 394:	80 93 2c 01 	sts	0x012C, r24	; 0x80012c <valueGreen>
- 398:	2b c0       	rjmp	.+86     	; 0x3f0 <control_rgb_color+0xaa>
-		} else {
+ 394:	8f ef       	ldi	r24, 0xFF	; 255
+ 396:	80 93 2c 01 	sts	0x012C, r24	; 0x80012c <valueGreen>
+ 39a:	2b c0       	rjmp	.+86     	; 0x3f2 <control_rgb_color+0xaa>
+		} else { //somewhere in between
 		float ratio = (float)(distance - MIN_BUZZER_THRESHOLD) / (float)(MAX_BUZZER_THRESHOLD - MIN_BUZZER_THRESHOLD);
- 39a:	60 91 2e 01 	lds	r22, 0x012E	; 0x80012e <distance>
- 39e:	70 91 2f 01 	lds	r23, 0x012F	; 0x80012f <distance+0x1>
- 3a2:	68 55       	subi	r22, 0x58	; 88
- 3a4:	7b 41       	sbci	r23, 0x1B	; 27
- 3a6:	07 2e       	mov	r0, r23
- 3a8:	00 0c       	add	r0, r0
- 3aa:	88 0b       	sbc	r24, r24
- 3ac:	99 0b       	sbc	r25, r25
- 3ae:	85 d1       	rcall	.+778    	; 0x6ba <__floatsisf>
- 3b0:	20 e0       	ldi	r18, 0x00	; 0
- 3b2:	30 eb       	ldi	r19, 0xB0	; 176
- 3b4:	43 eb       	ldi	r20, 0xB3	; 179
- 3b6:	56 e4       	ldi	r21, 0x46	; 70
- 3b8:	ea d0       	rcall	.+468    	; 0x58e <__divsf3>
- 3ba:	6b 01       	movw	r12, r22
- 3bc:	7c 01       	movw	r14, r24
+ 39c:	60 91 2e 01 	lds	r22, 0x012E	; 0x80012e <distance>
+ 3a0:	70 91 2f 01 	lds	r23, 0x012F	; 0x80012f <distance+0x1>
+ 3a4:	68 55       	subi	r22, 0x58	; 88
+ 3a6:	7b 41       	sbci	r23, 0x1B	; 27
+ 3a8:	07 2e       	mov	r0, r23
+ 3aa:	00 0c       	add	r0, r0
+ 3ac:	88 0b       	sbc	r24, r24
+ 3ae:	99 0b       	sbc	r25, r25
+ 3b0:	84 d1       	rcall	.+776    	; 0x6ba <__floatsisf>
+ 3b2:	20 e0       	ldi	r18, 0x00	; 0
+ 3b4:	30 eb       	ldi	r19, 0xB0	; 176
+ 3b6:	43 eb       	ldi	r20, 0xB3	; 179
+ 3b8:	56 e4       	ldi	r21, 0x46	; 70
+ 3ba:	e9 d0       	rcall	.+466    	; 0x58e <__divsf3>
+ 3bc:	6b 01       	movw	r12, r22
+ 3be:	7c 01       	movw	r14, r24
 		valueRed = 255 * (1 - ratio);
- 3be:	9b 01       	movw	r18, r22
- 3c0:	ac 01       	movw	r20, r24
- 3c2:	60 e0       	ldi	r22, 0x00	; 0
- 3c4:	70 e0       	ldi	r23, 0x00	; 0
- 3c6:	80 e8       	ldi	r24, 0x80	; 128
- 3c8:	9f e3       	ldi	r25, 0x3F	; 63
- 3ca:	7c d0       	rcall	.+248    	; 0x4c4 <__subsf3>
- 3cc:	20 e0       	ldi	r18, 0x00	; 0
- 3ce:	30 e0       	ldi	r19, 0x00	; 0
- 3d0:	4f e7       	ldi	r20, 0x7F	; 127
- 3d2:	53 e4       	ldi	r21, 0x43	; 67
- 3d4:	fe d1       	rcall	.+1020   	; 0x7d2 <__mulsf3>
- 3d6:	43 d1       	rcall	.+646    	; 0x65e <__fixunssfsi>
- 3d8:	60 93 2d 01 	sts	0x012D, r22	; 0x80012d <valueRed>
+ 3c0:	9b 01       	movw	r18, r22
+ 3c2:	ac 01       	movw	r20, r24
+ 3c4:	60 e0       	ldi	r22, 0x00	; 0
+ 3c6:	70 e0       	ldi	r23, 0x00	; 0
+ 3c8:	80 e8       	ldi	r24, 0x80	; 128
+ 3ca:	9f e3       	ldi	r25, 0x3F	; 63
+ 3cc:	7b d0       	rcall	.+246    	; 0x4c4 <__subsf3>
+ 3ce:	20 e0       	ldi	r18, 0x00	; 0
+ 3d0:	30 e0       	ldi	r19, 0x00	; 0
+ 3d2:	4f e7       	ldi	r20, 0x7F	; 127
+ 3d4:	53 e4       	ldi	r21, 0x43	; 67
+ 3d6:	fd d1       	rcall	.+1018   	; 0x7d2 <__mulsf3>
+ 3d8:	42 d1       	rcall	.+644    	; 0x65e <__fixunssfsi>
+ 3da:	60 93 2d 01 	sts	0x012D, r22	; 0x80012d <valueRed>
 		valueGreen = 255 * ratio;
- 3dc:	20 e0       	ldi	r18, 0x00	; 0
- 3de:	30 e0       	ldi	r19, 0x00	; 0
- 3e0:	4f e7       	ldi	r20, 0x7F	; 127
- 3e2:	53 e4       	ldi	r21, 0x43	; 67
- 3e4:	c7 01       	movw	r24, r14
- 3e6:	b6 01       	movw	r22, r12
- 3e8:	f4 d1       	rcall	.+1000   	; 0x7d2 <__mulsf3>
- 3ea:	39 d1       	rcall	.+626    	; 0x65e <__fixunssfsi>
- 3ec:	60 93 2c 01 	sts	0x012C, r22	; 0x80012c <valueGreen>
+ 3de:	20 e0       	ldi	r18, 0x00	; 0
+ 3e0:	30 e0       	ldi	r19, 0x00	; 0
+ 3e2:	4f e7       	ldi	r20, 0x7F	; 127
+ 3e4:	53 e4       	ldi	r21, 0x43	; 67
+ 3e6:	c7 01       	movw	r24, r14
+ 3e8:	b6 01       	movw	r22, r12
+ 3ea:	f3 d1       	rcall	.+998    	; 0x7d2 <__mulsf3>
+ 3ec:	38 d1       	rcall	.+624    	; 0x65e <__fixunssfsi>
+ 3ee:	60 93 2c 01 	sts	0x012C, r22	; 0x80012c <valueGreen>
 	}
 	
 	OCR2 = valueRed;
- 3f0:	80 91 2d 01 	lds	r24, 0x012D	; 0x80012d <valueRed>
- 3f4:	83 bd       	out	0x23, r24	; 35
+ 3f2:	80 91 2d 01 	lds	r24, 0x012D	; 0x80012d <valueRed>
+ 3f6:	83 bd       	out	0x23, r24	; 35
 	OCR0 = valueGreen;
- 3f6:	80 91 2c 01 	lds	r24, 0x012C	; 0x80012c <valueGreen>
- 3fa:	81 bf       	out	0x31, r24	; 49
+ 3f8:	80 91 2c 01 	lds	r24, 0x012C	; 0x80012c <valueGreen>
+ 3fc:	81 bf       	out	0x31, r24	; 49
 }
- 3fc:	ff 90       	pop	r15
- 3fe:	ef 90       	pop	r14
- 400:	df 90       	pop	r13
- 402:	cf 90       	pop	r12
- 404:	08 95       	ret
+ 3fe:	ff 90       	pop	r15
+ 400:	ef 90       	pop	r14
+ 402:	df 90       	pop	r13
+ 404:	cf 90       	pop	r12
+ 406:	08 95       	ret
 
-00000406 <main>:
+00000408 <main>:
 
 int bool = 0;
 
 int main(void)
 {	
- 406:	cf 93       	push	r28
- 408:	df 93       	push	r29
- 40a:	cd b7       	in	r28, 0x3d	; 61
- 40c:	de b7       	in	r29, 0x3e	; 62
- 40e:	c8 5c       	subi	r28, 0xC8	; 200
- 410:	d1 09       	sbc	r29, r1
- 412:	0f b6       	in	r0, 0x3f	; 63
- 414:	f8 94       	cli
- 416:	de bf       	out	0x3e, r29	; 62
- 418:	0f be       	out	0x3f, r0	; 63
- 41a:	cd bf       	out	0x3d, r28	; 61
+ 408:	cf 93       	push	r28
+ 40a:	df 93       	push	r29
+ 40c:	cd b7       	in	r28, 0x3d	; 61
+ 40e:	de b7       	in	r29, 0x3e	; 62
+ 410:	c8 5c       	subi	r28, 0xC8	; 200
+ 412:	d1 09       	sbc	r29, r1
+ 414:	0f b6       	in	r0, 0x3f	; 63
+ 416:	f8 94       	cli
+ 418:	de bf       	out	0x3e, r29	; 62
+ 41a:	0f be       	out	0x3f, r0	; 63
+ 41c:	cd bf       	out	0x3d, r28	; 61
 	init_leds();
- 41c:	64 df       	rcall	.-312    	; 0x2e6 <init_leds>
-	init_interrupts();
- 41e:	59 df       	rcall	.-334    	; 0x2d2 <init_interrupts>
+ 41e:	64 df       	rcall	.-312    	; 0x2e8 <init_leds>
 	
 	init_4bits_mode();
  420:	15 df       	rcall	.-470    	; 0x24c <init_4bits_mode>
@@ -784,7 +790,7 @@ int main(void)
 	
 	init_buzzer();
  422:	33 df       	rcall	.-410    	; 0x28a <init_buzzer>
- 424:	47 df       	rcall	.-370    	; 0x2b4 <init_ultrasoon>
+ 424:	51 df       	rcall	.-350    	; 0x2c8 <init_ultrasoon>
 	init_ultrasoon();
  426:	82 b3       	in	r24, 0x12	; 18
 	
@@ -794,24 +800,27 @@ int main(void)
 
 	while (1){
 		send_pulse();
- 42c:	78 df       	rcall	.-272    	; 0x31e <send_pulse>
+ 42c:	79 df       	rcall	.-270    	; 0x320 <send_pulse>
  42e:	8a ef       	ldi	r24, 0xFA	; 250
 		wait(250);
  430:	90 e0       	ldi	r25, 0x00	; 0
  432:	ba de       	rcall	.-652    	; 0x1a8 <wait>
  434:	80 91 2e 01 	lds	r24, 0x012E	; 0x80012e <distance>
 		
+		// getting a value from the ultrasone sensor
 		if (distance > 0){
  438:	90 91 2f 01 	lds	r25, 0x012F	; 0x80012f <distance+0x1>
  43c:	18 16       	cp	r1, r24
  43e:	19 06       	cpc	r1, r25
- 440:	34 f5       	brge	.+76     	; 0x48e <main+0x88>
+ 440:	34 f5       	brge	.+76     	; 0x48e <main+0x86>
  442:	10 92 2b 01 	sts	0x012B, r1	; 0x80012b <__data_end+0x1>
 			bool = 0;
  446:	10 92 2a 01 	sts	0x012A, r1	; 0x80012a <__data_end>
  44a:	1c df       	rcall	.-456    	; 0x284 <clear_lcd>
 			clear_lcd();
  44c:	80 91 2e 01 	lds	r24, 0x012E	; 0x80012e <distance>
+			
+			//convert time to cm
 			int distance_cm = (distance - 2000) / 420;
  450:	90 91 2f 01 	lds	r25, 0x012F	; 0x80012f <distance+0x1>
  454:	80 5d       	subi	r24, 0xD0	; 208
@@ -821,6 +830,7 @@ int main(void)
  45c:	1d d2       	rcall	.+1082   	; 0x898 <__divmodhi4>
  45e:	82 e0       	ldi	r24, 0x02	; 2
  460:	91 e0       	ldi	r25, 0x01	; 1
+			
 			sprintf(buffer, "%d%s", distance_cm, " cm");
  462:	9f 93       	push	r25
  464:	8f 93       	push	r24
@@ -838,55 +848,55 @@ int main(void)
  47c:	34 d2       	rcall	.+1128   	; 0x8e6 <sprintf>
  47e:	c8 01       	movw	r24, r16
 			display_text(buffer);
- 480:	3f df       	rcall	.-386    	; 0x300 <display_text>
+ 480:	40 df       	rcall	.-384    	; 0x302 <display_text>
  482:	0f b6       	in	r0, 0x3f	; 63
  484:	f8 94       	cli
  486:	de bf       	out	0x3e, r29	; 62
  488:	0f be       	out	0x3f, r0	; 63
  48a:	cd bf       	out	0x3d, r28	; 61
- 48c:	19 c0       	rjmp	.+50     	; 0x4c0 <main+0xba>
-		} else {
-			if (!bool){
+ 48c:	19 c0       	rjmp	.+50     	; 0x4c0 <main+0xb8>
  48e:	80 91 2a 01 	lds	r24, 0x012A	; 0x80012a <__data_end>
+		} else { // object too far for te ultrasone sensor
+			if (!bool){
  492:	90 91 2b 01 	lds	r25, 0x012B	; 0x80012b <__data_end+0x1>
-				clear_lcd();
  496:	89 2b       	or	r24, r25
-				display_text("Yallah achteruit");
- 498:	99 f4       	brne	.+38     	; 0x4c0 <main+0xba>
+ 498:	99 f4       	brne	.+38     	; 0x4c0 <main+0xb8>
+				clear_lcd();
  49a:	f4 de       	rcall	.-536    	; 0x284 <clear_lcd>
  49c:	8b e0       	ldi	r24, 0x0B	; 11
+				display_text("Yallah achteruit");
  49e:	91 e0       	ldi	r25, 0x01	; 1
-				set_cursor(40);
- 4a0:	2f df       	rcall	.-418    	; 0x300 <display_text>
+ 4a0:	30 df       	rcall	.-416    	; 0x302 <display_text>
  4a2:	88 e2       	ldi	r24, 0x28	; 40
+				set_cursor(40);
  4a4:	90 e0       	ldi	r25, 0x00	; 0
-				display_text("gaan, oulleh!");
- 4a6:	38 df       	rcall	.-400    	; 0x318 <set_cursor>
+ 4a6:	39 df       	rcall	.-398    	; 0x31a <set_cursor>
  4a8:	8c e1       	ldi	r24, 0x1C	; 28
+				display_text("gaan, oulleh!");
  4aa:	91 e0       	ldi	r25, 0x01	; 1
- 4ac:	29 df       	rcall	.-430    	; 0x300 <display_text>
-				set_cursor(0);
+ 4ac:	2a df       	rcall	.-428    	; 0x302 <display_text>
  4ae:	80 e0       	ldi	r24, 0x00	; 0
  4b0:	90 e0       	ldi	r25, 0x00	; 0
- 4b2:	32 df       	rcall	.-412    	; 0x318 <set_cursor>
+				set_cursor(0);
+ 4b2:	33 df       	rcall	.-410    	; 0x31a <set_cursor>
  4b4:	81 e0       	ldi	r24, 0x01	; 1
-				bool = 1;
  4b6:	90 e0       	ldi	r25, 0x00	; 0
  4b8:	90 93 2b 01 	sts	0x012B, r25	; 0x80012b <__data_end+0x1>
+				bool = 1;
  4bc:	80 93 2a 01 	sts	0x012A, r24	; 0x80012a <__data_end>
- 4c0:	42 df       	rcall	.-380    	; 0x346 <control_rgb_color>
-			}
-		}
-		control_rgb_color();
- 4c2:	b4 cf       	rjmp	.-152    	; 0x42c <main+0x26>
+ 4c0:	43 df       	rcall	.-378    	; 0x348 <control_rgb_color>
+ 4c2:	b4 cf       	rjmp	.-152    	; 0x42c <main+0x24>
 
 000004c4 <__subsf3>:
  4c4:	50 58       	subi	r21, 0x80	; 128
 
 000004c6 <__addsf3>:
-	}
+			}
+		}
+		control_rgb_color();
  4c6:	bb 27       	eor	r27, r27
  4c8:	aa 27       	eor	r26, r26
+	}
  4ca:	0e d0       	rcall	.+28     	; 0x4e8 <__addsf3x>
  4cc:	48 c1       	rjmp	.+656    	; 0x75e <__fp_round>
  4ce:	39 d1       	rcall	.+626    	; 0x742 <__fp_pscA>
