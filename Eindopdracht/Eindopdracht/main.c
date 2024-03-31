@@ -36,13 +36,13 @@ ISR(TIMER1_COMPA_vect) {
 	{
 		PORTF = BIT(1);
 		delay_count = MIN_BUZZER_THRESHOLD;
-		} else if (delay_count > MAX_BUZZER_THRESHOLD){
+	} else if (delay_count > MAX_BUZZER_THRESHOLD){
 		delay_count = MAX_BUZZER_THRESHOLD;
 		PORTF = 0;
-		} else {
+	} else {
 		PORTF ^= BIT(1);
+		delay_count = distance;
 	}
-	delay_count = distance;
 	OCR1A = delay_count;		
 }
 
